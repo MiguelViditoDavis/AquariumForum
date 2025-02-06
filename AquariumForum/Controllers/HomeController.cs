@@ -1,32 +1,52 @@
-using System.Diagnostics;
-using AquariumForum.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using AquariumForum.Models;
+using AquariumForum;
 
-namespace AquariumForum.Controllers
+public class HomeController : Controller
 {
-    public class HomeController : Controller
+    private readonly AppDbContext _context;
+
+    public HomeController(AppDbContext context)
     {
-        private readonly ILogger<HomeController> _logger;
+        _context = context;
+    }
 
-        public HomeController(ILogger<HomeController> logger)
+    // Displays all discussions on the home page
+    public async Task<IActionResult> Index()
+    {
+        var discussions = await _context.Discussions
+            .Include(d => d.Comments)
+            .OrderByDescending(d => d.CreateDate)
+            .ToListAsync();
+
+        return View(discussions);
+    }
+
+    // Displays a single discussion with details and sorted comments
+    public async Task<IActionResult> GetDiscussion(int? id)
+    {
+        if (id == null)
         {
-            _logger = logger;
+            return NotFound();
         }
 
-        public IActionResult Index()
+        // Include comments and order them by creation date (descending)
+        var discussion = await _context.Discussions
+            .Include(d => d.Comments.OrderByDescending(c => c.CreateDate))
+            .FirstOrDefaultAsync(d => d.DiscussionId == id);
+
+        if (discussion == null)
         {
-            return View();
+            return NotFound();
         }
 
-        public IActionResult Privacy()
-        {
-            return View();
-        }
+        return View(discussion);
+    }
 
-        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        public IActionResult Error()
-        {
-            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
-        }
+    // Handles errors and unexpected scenarios (optional)
+    public IActionResult Error()
+    {
+        return View();
     }
 }

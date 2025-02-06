@@ -11,7 +11,7 @@ namespace AquariumForum.Models
         // Foreign Key
         public int DiscussionId { get; set; }
 
-        // Navigation Property: A comment belongs to one discussion
-        public Discussion Discussion { get; set; }
+        // Make the navigation property nullable to avoid validation issues
+        public Discussion? Discussion { get; set; }
     }
 }

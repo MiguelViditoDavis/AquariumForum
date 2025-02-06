@@ -1,8 +1,27 @@
-﻿@{
+﻿@model IEnumerable<AquariumForum.Models.Discussion>
+
+@{
     ViewData["Title"] = "Home Page";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+<h1>Discussion Threads</h1>
+
+@foreach (var discussion in Model)
+{
+    <div class="discussion-item mb-3 p-3 border rounded">
+        <h3>
+            <a asp-action="GetDiscussion" asp-route-id="@discussion.DiscussionId">@discussion.Title</a>
+        </h3>
+
+        <div class="mb-2">
+            @if (!string.IsNullOrEmpty(discussion.ImageFilename))
+            {
+                <img src="@Url.Content("~/images/" + discussion.ImageFilename)" alt="Thumbnail" class="img-thumbnail" style="max-width: 150px;" />
+            }
+        </div>
+
+        <p><strong>Comments:</strong> @discussion.Comments.Count</p>
+        <p><strong>Created on:</strong> @discussion.CreateDate.ToString("g")</p>
+    </div>
+    <hr />
+}
