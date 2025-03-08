@@ -4,38 +4,41 @@
     ViewData["Title"] = "Discussion Details";
 }
 
-<h1>@Model.Title</h1>
-
+<h1 class="mb-3">@Model.Title</h1> <!-- Added bottom margin for spacing -->
 @if (!string.IsNullOrEmpty(Model.ImageFilename))
 {
-    <div>
-        <img src="@Url.Content("~/images/" + Model.ImageFilename)" alt="Discussion Image" class="img-fluid mb-3" />
+    <div class="mb-4">
+        <!-- Added bottom margin -->
+        <img src="@Url.Content("~/images/" + Model.ImageFilename)" alt="Discussion Image" class="img-fluid" />
     </div>
 }
 
-<p>@Model.Content</p>
+<p class="mb-4">@Model.Content</p> <!-- Added bottom margin for spacing -->
 
-<h3>Comments (@Model.Comments.Count)</h3>
+<h3 class="mb-3">Comments (@Model.Comments.Count)</h3> <!-- Added spacing above comments section -->
 
-<p>
+<p class="mb-3">
     <a asp-controller="Comments" asp-action="Create" asp-route-discussionId="@Model.DiscussionId" class="btn btn-primary">Add New Comment</a>
 </p>
 
 @if (Model.Comments.Any())
 {
-    <ul class="list-group">
+    <ul class="list-group mb-4">
+        <!-- Added spacing between comments and back button -->
         @foreach (var comment in Model.Comments)
         {
             <li class="list-group-item">
                 <strong>@comment.CreateDate.ToString("MMMM dd, yyyy hh:mm tt"):</strong>
-                <p>@comment.Content</p>
+                <p class="mb-2">@comment.Content</p>
             </li>
         }
     </ul>
 }
 else
 {
-    <p>No comments yet. Be the first to add one!</p>
+    <p class="mb-4">No comments yet. Be the first to add one!</p> <!-- Added spacing -->
 }
 
-<p><a asp-action="Index" asp-controller="Home">Back to Home</a></p>
+<p>
+    <a asp-action="Index" asp-controller="Home" class="btn btn-secondary">Back to Home</a> <!-- Added a button style for better UI -->
+</p>

@@ -4,16 +4,16 @@
     ViewData["Title"] = "Home Page";
 }
 
-<h1>Discussion Threads</h1>
-
+<h1 class="mb-4">Discussion Threads</h1> <!-- Added bottom margin for spacing -->
 @foreach (var discussion in Model)
 {
-    <div class="discussion-item mb-3 p-3 border rounded">
-        <h3>
+    <div class="discussion-item mb-4 p-4 border rounded">
+        <!-- Increased padding for better readability -->
+        <h3 class="mb-2">
             <a asp-action="GetDiscussion" asp-route-id="@discussion.DiscussionId">@discussion.Title</a>
         </h3>
 
-        <div class="mb-2">
+        <div class="mb-3">
             @if (!string.IsNullOrEmpty(discussion.ImageFilename))
             {
                 <img src="@Url.Content("~/images/" + discussion.ImageFilename)" alt="Thumbnail" class="img-thumbnail" style="max-width: 150px;" />
@@ -23,5 +23,5 @@
         <p><strong>Comments:</strong> @discussion.Comments.Count</p>
         <p><strong>Created on:</strong> @discussion.CreateDate.ToString("g")</p>
     </div>
-    <hr />
+    <hr class="mb-4" /> <!-- Increased spacing between discussions -->
 }

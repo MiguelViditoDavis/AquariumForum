@@ -3,9 +3,9 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using AquariumForum;
 using AquariumForum.Models;
 
 namespace AquariumForum.Controllers
@@ -13,32 +13,33 @@ namespace AquariumForum.Controllers
     public class DiscussionsController : Controller
     {
         private readonly AppDbContext _context;
+        private readonly UserManager<IdentityUser> _userManager;
 
-        public DiscussionsController(AppDbContext context)
+        public DiscussionsController(AppDbContext context, UserManager<IdentityUser> userManager)
         {
             _context = context;
+            _userManager = userManager;
         }
 
-        // GET: Discussions
+        // GET: Discussions (Only show logged-in user's discussions)
         public async Task<IActionResult> Index()
         {
-            return View(await _context.Discussions.ToListAsync());
+            var userId = _userManager.GetUserId(User);
+            var discussions = await _context.Discussions
+                .Where(d => d.UserId == userId)
+                .Include(d => d.User)
+                .ToListAsync();
+
+            return View(discussions);
         }
 
         // GET: Discussions/Details/5
         public async Task<IActionResult> Details(int? id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            if (id == null) return NotFound();
 
-            var discussion = await _context.Discussions
-                .FirstOrDefaultAsync(m => m.DiscussionId == id);
-            if (discussion == null)
-            {
-                return NotFound();
-            }
+            var discussion = await _context.Discussions.FirstOrDefaultAsync(m => m.DiscussionId == id);
+            if (discussion == null) return NotFound();
 
             return View(discussion);
         }
@@ -52,131 +53,98 @@ namespace AquariumForum.Controllers
         // POST: Discussions/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("DiscussionId,Title,Content,CreateDate")] Discussion discussion, IFormFile imageFile)
+        public async Task<IActionResult> Create([Bind("Title,Content")] Discussion discussion, IFormFile imageFile)
         {
-            // Step 1: Log any ModelState validation errors
-            ModelState.Remove("ImageFilename");  // Remove ImageFilename from validation
+            ModelState.Remove("User");
+            ModelState.Remove("UserId");
+            ModelState.Remove("ImageFilename");
 
             if (!ModelState.IsValid)
             {
-                foreach (var error in ModelState.Values.SelectMany(v => v.Errors))
-                {
-                    Console.WriteLine($"Validation Error: {error.ErrorMessage}");
-                }
-
-                return View(discussion); // If invalid, return early
+                return View(discussion);
             }
 
-            Console.WriteLine("ModelState is valid. Proceeding with file saving...");
+            var userId = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(userId))
+            {
+                ModelState.AddModelError("", "You must be logged in to create a discussion.");
+                return View(discussion);
+            }
 
-            // Step 2: Debug file saving with a simple test file
+            discussion.UserId = userId;
+            discussion.CreateDate = DateTime.Now;
+
             if (imageFile != null && imageFile.Length > 0)
             {
-                try
+                var fileName = Path.GetRandomFileName() + Path.GetExtension(imageFile.FileName);
+                var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", fileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
                 {
-                    var testFilePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", "test_debug.txt");
-                    Console.WriteLine($"DEBUG: Attempting to write to {testFilePath}");
-
-                    // Write a test file to check if saving works
-                    await System.IO.File.WriteAllTextAsync(testFilePath, "This is a debug test file.");
-                    Console.WriteLine("DEBUG: Test file written successfully!");
-
-                    // Proceed with image saving logic
-                    var fileName = Path.GetRandomFileName() + Path.GetExtension(imageFile.FileName);
-                    var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", fileName);
-
-                    Console.WriteLine($"DEBUG: Saving image to {filePath}");
-                    using (var stream = new FileStream(filePath, FileMode.Create))
-                    {
-                        await imageFile.CopyToAsync(stream);
-                    }
-
-                    Console.WriteLine("DEBUG: Image saved successfully!");
-
-                    discussion.ImageFilename = fileName;
-                    discussion.CreateDate = DateTime.Now;
-
-                    _context.Add(discussion);
-                    await _context.SaveChangesAsync();
-
-                    return RedirectToAction(nameof(Index));
+                    await imageFile.CopyToAsync(stream);
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"ERROR: Could not save file or discussion. Exception: {ex.Message}");
-                }
+
+                discussion.ImageFilename = fileName;
             }
             else
             {
-                Console.WriteLine("No image file uploaded.");
+                ModelState.AddModelError("ImageFilename", "An image is required.");
+                return View(discussion);
             }
 
-            return View(discussion);
+            _context.Add(discussion);
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction(nameof(Index));
         }
 
         // GET: Discussions/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            if (id == null) return NotFound();
 
             var discussion = await _context.Discussions.FindAsync(id);
-            if (discussion == null)
-            {
-                return NotFound();
-            }
+            if (discussion == null) return NotFound();
+
             return View(discussion);
         }
 
         // POST: Discussions/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("DiscussionId,Title,Content,ImageFilename,CreateDate")] Discussion discussion)
+        public async Task<IActionResult> Edit(int id, [Bind("DiscussionId,Title,Content,ImageFilename")] Discussion discussion)
         {
-            if (id != discussion.DiscussionId)
-            {
-                return NotFound();
-            }
+            if (id != discussion.DiscussionId) return NotFound();
 
-            if (ModelState.IsValid)
+            var existingDiscussion = await _context.Discussions.AsNoTracking().FirstOrDefaultAsync(d => d.DiscussionId == id);
+            if (existingDiscussion == null) return NotFound();
+
+            discussion.CreateDate = existingDiscussion.CreateDate;
+            ModelState.Remove("User");
+            ModelState.Remove("UserId");
+
+            if (!ModelState.IsValid) return View(discussion);
+
+            try
             {
-                try
-                {
-                    _context.Update(discussion);
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!DiscussionExists(discussion.DiscussionId))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
+                _context.Update(discussion);
+                await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
-            return View(discussion);
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!DiscussionExists(discussion.DiscussionId)) return NotFound();
+                throw;
+            }
         }
 
         // GET: Discussions/Delete/5
         public async Task<IActionResult> Delete(int? id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            if (id == null) return NotFound();
 
-            var discussion = await _context.Discussions
-                .FirstOrDefaultAsync(m => m.DiscussionId == id);
-            if (discussion == null)
-            {
-                return NotFound();
-            }
+            var discussion = await _context.Discussions.FirstOrDefaultAsync(m => m.DiscussionId == id);
+            if (discussion == null) return NotFound();
 
             return View(discussion);
         }
@@ -187,10 +155,7 @@ namespace AquariumForum.Controllers
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var discussion = await _context.Discussions.FindAsync(id);
-            if (discussion != null)
-            {
-                _context.Discussions.Remove(discussion);
-            }
+            if (discussion != null) _context.Discussions.Remove(discussion);
 
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));

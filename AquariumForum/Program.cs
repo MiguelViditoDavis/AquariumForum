@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AquariumForum
@@ -16,7 +17,11 @@ namespace AquariumForum
                     ?? throw new InvalidOperationException("Connection string 'AppDbContext' not found.")
                 ));
 
-            // Add services to the container
+            // Add Identity services
+            builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = false)
+                .AddEntityFrameworkStores<AppDbContext>();
+
+            // Add MVC services
             builder.Services.AddControllersWithViews();
 
             var app = builder.Build();
@@ -25,12 +30,15 @@ namespace AquariumForum
             if (!app.Environment.IsDevelopment())
             {
                 app.UseExceptionHandler("/Home/Error");
-                app.UseHsts(); // Enable HTTP Strict Transport Security
+                app.UseHsts();
             }
 
             app.UseHttpsRedirection();
-            app.UseStaticFiles(); // Enable serving static files (needed for CSS, JS, images, etc.)
+            app.UseStaticFiles();
             app.UseRouting();
+
+            // Enable Authentication & Authorization
+            app.UseAuthentication();
             app.UseAuthorization();
 
             // Configure default route mapping
@@ -38,6 +46,9 @@ namespace AquariumForum
                 name: "default",
                 pattern: "{controller=Home}/{action=Index}/{id?}"
             );
+
+            // Ensure Identity routes are mapped
+            app.MapRazorPages();
 
             app.Run();
         }

@@ -4,30 +4,29 @@
     ViewData["Title"] = "Add Comment";
 }
 
-<h1>Add Comment</h1>
-
+<h1 class="mb-3">Add Comment</h1> <!-- Added spacing below the title -->
 <!-- Form to create a comment -->
 <form asp-action="Create" method="post" enctype="multipart/form-data">
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div> <!-- Added spacing below validation -->
     <!-- Hidden input for DiscussionId to link the comment to the discussion -->
     <input type="hidden" asp-for="DiscussionId" value="@ViewData["DiscussionId"]" />
 
     <!-- Comment content field -->
-    <div class="form-group">
+    <div class="form-group mb-3">
         <label asp-for="Content" class="control-label">Comment</label>
         <textarea asp-for="Content" class="form-control" rows="4"></textarea>
         <span asp-validation-for="Content" class="text-danger"></span>
     </div>
 
     <!-- Submit button -->
-    <div class="form-group">
+    <div class="form-group mb-3">
         <input type="submit" value="Post Comment" class="btn btn-primary" />
     </div>
 </form>
 
 <!-- Back to Discussion link -->
-<div>
+<div class="mt-3">
+    <!-- Added spacing above the back link -->
     <a asp-action="GetDiscussion" asp-controller="Home" asp-route-id="@ViewData["DiscussionId"]">Back to Discussion</a>
 </div>
 
