@@ -150,7 +150,10 @@ namespace AquariumForum.Controllers
                 return Forbid(); // Prevents unauthorized edits
             }
 
+            // Keep the original UserId and CreateDate
+            discussion.UserId = existingDiscussion.UserId;
             discussion.CreateDate = existingDiscussion.CreateDate;
+
             ModelState.Remove("User");
             ModelState.Remove("UserId");
 
