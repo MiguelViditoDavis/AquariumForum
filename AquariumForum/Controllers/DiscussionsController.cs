@@ -2,6 +2,7 @@
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -21,16 +22,29 @@ namespace AquariumForum.Controllers
             _userManager = userManager;
         }
 
-        // GET: Discussions (Only show logged-in user's discussions)
+        // GET: Discussions (Shows ALL discussions)
         public async Task<IActionResult> Index()
         {
-            var userId = _userManager.GetUserId(User);
             var discussions = await _context.Discussions
-                .Where(d => d.UserId == userId)
                 .Include(d => d.User)
+                .OrderByDescending(d => d.CreateDate)
                 .ToListAsync();
 
             return View(discussions);
+        }
+
+        // GET: My Threads (Shows ONLY the logged-in user's discussions)
+        [Authorize]
+        public async Task<IActionResult> MyThreads()
+        {
+            var userId = _userManager.GetUserId(User);
+            var myThreads = await _context.Discussions
+                .Where(d => d.UserId == userId)
+                .Include(d => d.User)
+                .OrderByDescending(d => d.CreateDate)
+                .ToListAsync();
+
+            return View("Index", myThreads); // Uses the same Index.cshtml view
         }
 
         // GET: Discussions/Details/5
@@ -38,13 +52,17 @@ namespace AquariumForum.Controllers
         {
             if (id == null) return NotFound();
 
-            var discussion = await _context.Discussions.FirstOrDefaultAsync(m => m.DiscussionId == id);
+            var discussion = await _context.Discussions
+                .Include(d => d.User)
+                .FirstOrDefaultAsync(m => m.DiscussionId == id);
+
             if (discussion == null) return NotFound();
 
             return View(discussion);
         }
 
         // GET: Discussions/Create
+        [Authorize]
         public IActionResult Create()
         {
             return View();
@@ -99,6 +117,7 @@ namespace AquariumForum.Controllers
         }
 
         // GET: Discussions/Edit/5
+        [Authorize]
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null) return NotFound();
@@ -106,18 +125,30 @@ namespace AquariumForum.Controllers
             var discussion = await _context.Discussions.FindAsync(id);
             if (discussion == null) return NotFound();
 
+            var userId = _userManager.GetUserId(User);
+            if (discussion.UserId != userId)
+            {
+                return Forbid(); // Prevents users from editing other users' posts
+            }
+
             return View(discussion);
         }
 
         // POST: Discussions/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize]
         public async Task<IActionResult> Edit(int id, [Bind("DiscussionId,Title,Content,ImageFilename")] Discussion discussion)
         {
             if (id != discussion.DiscussionId) return NotFound();
 
             var existingDiscussion = await _context.Discussions.AsNoTracking().FirstOrDefaultAsync(d => d.DiscussionId == id);
             if (existingDiscussion == null) return NotFound();
+
+            if (existingDiscussion.UserId != _userManager.GetUserId(User))
+            {
+                return Forbid(); // Prevents unauthorized edits
+            }
 
             discussion.CreateDate = existingDiscussion.CreateDate;
             ModelState.Remove("User");
@@ -139,6 +170,7 @@ namespace AquariumForum.Controllers
         }
 
         // GET: Discussions/Delete/5
+        [Authorize]
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null) return NotFound();
@@ -146,17 +178,29 @@ namespace AquariumForum.Controllers
             var discussion = await _context.Discussions.FirstOrDefaultAsync(m => m.DiscussionId == id);
             if (discussion == null) return NotFound();
 
+            if (discussion.UserId != _userManager.GetUserId(User))
+            {
+                return Forbid(); // Prevents unauthorized deletion
+            }
+
             return View(discussion);
         }
 
         // POST: Discussions/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
+        [Authorize]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var discussion = await _context.Discussions.FindAsync(id);
-            if (discussion != null) _context.Discussions.Remove(discussion);
+            if (discussion == null) return NotFound();
 
+            if (discussion.UserId != _userManager.GetUserId(User))
+            {
+                return Forbid(); // Prevents unauthorized deletion
+            }
+
+            _context.Discussions.Remove(discussion);
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }

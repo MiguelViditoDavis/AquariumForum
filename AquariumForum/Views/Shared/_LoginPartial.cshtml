@@ -5,22 +5,23 @@
 <ul class="navbar-nav">
     @if (SignInManager.IsSignedIn(User))
     {
+        <!-- Show Hello, [Username] -->
         <li class="nav-item">
             <a class="nav-link text-dark" asp-area="Identity" asp-page="/Account/Manage/Index" title="Manage">
                 Hello, @UserManager.GetUserName(User)!
             </a>
         </li>
+
+        <!-- Logout Form -->
         <li class="nav-item">
-            <a class="nav-link text-dark" asp-controller="Discussions" asp-action="MyThreads">My Threads</a>
-        </li>
-        <li class="nav-item">
-            <form asp-controller="Account" asp-action="Logout" method="post" class="form-inline">
+            <form method="post" asp-area="Identity" asp-page="/Account/Logout">
                 <button type="submit" class="nav-link btn btn-link text-dark">Logout</button>
             </form>
         </li>
     }
     else
     {
+        <!-- Register and Login links -->
         <li class="nav-item">
             <a class="nav-link text-dark" asp-area="Identity" asp-page="/Account/Register">Register</a>
         </li>
